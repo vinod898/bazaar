@@ -1,4 +1,10 @@
+import 'package:bazaar/models/user_model.dart';
+import 'package:bazaar/screens/home.dart';
+import 'package:bazaar/validators/login_validator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({Key? key}) : super(key: key);
@@ -13,8 +19,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final firstNameEditingController = TextEditingController();
   final secondNameEditingController = TextEditingController();
   final emailEditingController = TextEditingController();
-  final passwordNameEditingController = TextEditingController();
+  final passwordEditingController = TextEditingController();
   final confirmPasswordEditingController = TextEditingController();
+
+  final _auth = FirebaseAuth.instance;
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +63,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       controller: emailEditingController,
       keyboardType: TextInputType.emailAddress,
       // validation
+      validator: ((value) => validateEmail(value)),
       onSaved: (value) {
         emailEditingController.text = value!;
       },
@@ -68,12 +77,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
     final passwordfield = TextFormField(
       autofocus: false,
-      controller: passwordNameEditingController,
+      controller: passwordEditingController,
       obscureText: true,
       keyboardType: TextInputType.visiblePassword,
       // validation
+      validator: ((value) => validatePassword(value)),
       onSaved: (value) {
-        passwordNameEditingController.text = value!;
+        passwordEditingController.text = value!;
       },
       textInputAction: TextInputAction.next,
       decoration: InputDecoration(
@@ -89,6 +99,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       obscureText: true,
       keyboardType: TextInputType.visiblePassword,
       // validation
+      validator: ((value) =>
+          validateConfirmPassword(passwordEditingController.text, value)),
       onSaved: (value) {
         confirmPasswordEditingController.text = value!;
       },
@@ -107,7 +119,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         borderRadius: BorderRadius.circular(30),
         color: Colors.blueAccent,
         child: MaterialButton(
-          onPressed: () {},
+          onPressed: () {
+            signUp(emailEditingController.text, passwordEditingController.text);
+          },
           padding: const EdgeInsets.fromLTRB(20, 15, 20, 15),
           minWidth: MediaQuery.of(context).size.width,
           child: const Text(
@@ -171,5 +185,37 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         ),
       ),
     );
+  }
+
+  void signUp(String email, String password) async {
+    if (_formKey.currentState!.validate()) {
+      await _auth
+          .createUserWithEmailAndPassword(email: email, password: password)
+          .then((value) => {
+                saveUserDetailsToFB(),
+              })
+          .catchError((err) => {
+                Fluttertoast.showToast(msg: err!.message),
+              });
+    }
+  }
+
+  saveUserDetailsToFB() async {
+    FirebaseFirestore firebaseFirestore = FirebaseFirestore.instance;
+    User? user = _auth.currentUser;
+    UserModel userModel = UserModel();
+    userModel.email = user!.email;
+    userModel.uid = user.uid;
+    userModel.firstName = firstNameEditingController.text;
+    userModel.secondName = secondNameEditingController.text;
+
+    await firebaseFirestore
+        .collection('users')
+        .doc(user.uid)
+        .set(userModel.toMap());
+
+    Fluttertoast.showToast(msg: "Account created successfully");
+    Navigator.pushReplacement(
+        context, MaterialPageRoute(builder: (context) => const HomeScreen()));
   }
 }

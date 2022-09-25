@@ -1,8 +1,9 @@
 import 'package:bazaar/screens/home.dart';
 import 'package:bazaar/screens/registration.dart';
-import 'package:bazaar/validators/email_validator.dart';
+import 'package:bazaar/validators/login_validator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -30,7 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
       controller: emailController,
       keyboardType: TextInputType.emailAddress,
       //vaidation
-      validator: ((value) => validate(value)),
+      validator: ((value) => validateEmail(value)),
       onSaved: (value) {
         emailController.text = value!;
       },
@@ -48,6 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
       controller: passwordController,
       keyboardType: TextInputType.visiblePassword,
       // validation
+      validator: ((value) => validatePassword(value)),
       onSaved: (value) {
         passwordController.text = value!;
       },
@@ -67,8 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
         color: Colors.blueAccent,
         child: MaterialButton(
           onPressed: () {
-            Navigator.pushReplacement(context,
-                MaterialPageRoute(builder: (context) => const HomeScreen()));
+            signIn(emailController.text, passwordController.text);
           },
           padding: const EdgeInsets.fromLTRB(20, 15, 20, 15),
           minWidth: MediaQuery.of(context).size.width,
@@ -136,5 +137,22 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  void signIn(String email, String password) async {
+    if (_formKey.currentState!.validate()) {
+      await _auth
+          .signInWithEmailAndPassword(email: email, password: password)
+          .then((uid) => {
+                Fluttertoast.showToast(msg: "login successful"),
+                Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const HomeScreen())),
+              })
+          .catchError((err) => {
+                Fluttertoast.showToast(msg: err!.message),
+              });
+    }
   }
 }
